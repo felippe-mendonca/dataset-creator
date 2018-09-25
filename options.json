@@ -1,0 +1,114 @@
+{
+  "broker_uri": "amqp://192.168.1.105:30000",
+  "folder": "/home/felippe/dataset-labviros",
+  "cameras": [
+    {
+      "id": 0,
+      "config": {
+        "sampling": {
+          "frequency": 10.0
+        },
+        "image": {
+          "resolution": {
+            "width": 1288,
+            "height": 728
+          },
+          "color_space": {
+            "value": "RGB"
+          },
+          "format": {
+            "format": "JPEG",
+            "compression": 0.9
+          }
+        },
+        "camera": {
+          "shutter": {
+            "ratio": 0.2,
+            "automatic": false
+          }
+        }
+      }
+    },
+    {
+      "id": 1,
+      "config": {
+        "sampling": {
+          "frequency": 10.0
+        },
+        "image": {
+          "resolution": {
+            "width": 1288,
+            "height": 728
+          },
+          "color_space": {
+            "value": "RGB"
+          },
+          "format": {
+            "format": "JPEG",
+            "compression": 0.9
+          }
+        },
+        "camera": {
+          "shutter": {
+            "ratio": 0.2,
+            "automatic": false
+          }
+        }
+      }
+    },
+    {
+      "id": 2,
+      "config": {
+        "sampling": {
+          "frequency": 10.0
+        },
+        "image": {
+          "resolution": {
+            "width": 1288,
+            "height": 728
+          },
+          "color_space": {
+            "value": "RGB"
+          },
+          "format": {
+            "format": "JPEG",
+            "compression": 0.9
+          }
+        },
+        "camera": {
+          "shutter": {
+            "ratio": 0.2,
+            "automatic": false
+          }
+        }
+      }
+    },
+    {
+      "id": 3,
+      "config": {
+        "sampling": {
+          "frequency": 10.0
+        },
+        "image": {
+          "resolution": {
+            "width": 1288,
+            "height": 728
+          },
+          "color_space": {
+            "value": "RGB"
+          },
+          "format": {
+            "format": "JPEG",
+            "compression": 0.9
+          }
+        },
+        "camera": {
+          "shutter": {
+            "ratio": 0.2,
+            "automatic": false
+          }
+        }
+      }
+    }
+  ]
+}
