@@ -6,10 +6,9 @@ from subprocess import Popen, PIPE, STDOUT
 import time
 import cv2
 import numpy as np
+from utils import load_options
 from is_msgs.image_pb2 import Image
 from is_wire.core import Channel, Subscription, Message, Logger
-from options_pb2 import DatasetCaptureOptions
-from google.protobuf.json_format import Parse
 
 
 def get_id(topic):
@@ -34,17 +33,11 @@ log = Logger(name='Capture')
 if len(sys.argv) != 3:
     log.critical("Usage: python3 capture.py <PERSON_ID> <GESTURE_ID>")
     sys.exit(-1)
-
 person_id = int(sys.argv[1])
 gesture_id = int(sys.argv[2])
 log.info("PERSON_ID: {} GESTURE_ID: {}", person_id, gesture_id)
 
-with open('options.json', 'r') as f:
-    try:
-        options = Parse(f.read(), DatasetCaptureOptions())
-    except Exception as ex:
-        log.critical('Unable to read \"options.json\". \n{}', ex)
-        sys.exit(-1)
+options = load_options()
 
 if not os.path.exists(options.folder):
     os.makedirs(options.folder)

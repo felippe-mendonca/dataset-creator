@@ -3,9 +3,8 @@ import re
 import sys
 import shutil
 from subprocess import Popen, PIPE, STDOUT
-from options_pb2 import DatasetCaptureOptions
+from utils import load_options
 from is_wire.core import Logger
-from google.protobuf.json_format import Parse
 
 
 def get_person_gesture(folder):
@@ -16,13 +15,7 @@ def get_person_gesture(folder):
 
 
 log = Logger(name='Capture')
-
-with open('options.json', 'r') as f:
-    try:
-        options = Parse(f.read(), DatasetCaptureOptions())
-    except Exception as ex:
-        log.critical('Unable to read \"options.json\". \n{}', ex)
-        sys.exit(-1)
+options = load_options()
 
 if not os.path.exists(options.folder):
     log.critical("Folder '{}' doesn't exist", options.folder)

@@ -1,16 +1,9 @@
 from is_wire.core import Channel, Subscription, Message, Logger
-from options_pb2 import DatasetCaptureOptions
-from google.protobuf.json_format import Parse
+from utils import load_options
 
 log = Logger(name='ConfigureCameras')
 
-with open('options.json', 'r') as f:
-    try:
-        options = Parse(f.read(), DatasetCaptureOptions())
-        log.info('Options:\n{}', options)
-    except Exception as ex:
-        log.critical('Unable to read \"options.json\". \n{}', ex)
-
+options = load_options()
 c = Channel(options.broker_uri)
 sb = Subscription(c)
 
