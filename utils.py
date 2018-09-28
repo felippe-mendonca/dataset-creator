@@ -58,5 +58,5 @@ class FrameVideoFetcher:
                 return '', 0, None
 
         n_next_frame = int(self._video_cap.get(cv2.CAP_PROP_POS_FRAMES))
-        has_frame, frame = self._video_cap.read()
+        _, frame = self._video_cap.read()
         return (self._current_video_base, n_next_frame, frame)
