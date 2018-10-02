@@ -20,20 +20,53 @@ def load_options(print_options=True):
             log.critical('Unable to read \"options.json\". \n{}', ex)
             sys.exit(-1)
 
+
 def make_pb_image(input_image, encode_format='.jpeg', compression_level=0.9):
     if isinstance(input_image, np.ndarray):
         if encode_format == '.jpeg':
-            params = [cv2.IMWRITE_JPEG_QUALITY, int(compression_level * (100 - 0) + 0)]
+            params = [
+                cv2.IMWRITE_JPEG_QUALITY,
+                int(compression_level * (100 - 0) + 0)
+            ]
         elif encode_format == '.png':
-            params = [cv2.IMWRITE_PNG_COMPRESSION, int(compression_level * (9 - 0) + 0)]
+            params = [
+                cv2.IMWRITE_PNG_COMPRESSION,
+                int(compression_level * (9 - 0) + 0)
+            ]
         else:
-            return Image()        
-        cimage = cv2.imencode(ext=encode_format, img=input_image, params=params)
+            return Image()
+        cimage = cv2.imencode(
+            ext=encode_format, img=input_image, params=params)
         return Image(data=cimage[1].tobytes())
     elif isinstance(input_image, Image):
         return input_image
     else:
         return Image()
+
+
+def to_labels_array(labels_dict):
+    labels = np.zeros(labels_dict['n_samples'])
+    for label in labels_dict['labels']:
+        begin, end = label['begin'], label['end']
+        labels[begin] = 1
+        labels[end] = -1
+        labels[begin + 1:end] = 3
+    return labels
+
+
+def to_labels_dict(labels_array):
+    labels = {'n_samples': labels_array.size, 'labels': []}
+    begins = np.where(labels_array == 1)[0]
+    ends = np.where(labels_array == -1)[0]
+    if (begins.size != ends.size) and begins.size > 0 and ends.size > 0:
+        return labels
+    diff = ends - begins
+    if np.any(diff < 1):
+        return labels
+    for begin, end in zip(begins, ends):
+        labels['labels'].append({'begin': begin, 'end': end})
+    return labels
+
 
 class FrameVideoFetcher:
     def __init__(self, video_files, base_folder):
