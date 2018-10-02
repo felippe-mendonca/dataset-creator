@@ -97,6 +97,8 @@ def put_text(image,
 
 
 log = Logger(name='LabelVideos')
+with open('keymap.json', 'r') as f:
+    keymap = json.load(f)
 options = load_options(print_options=False)
 
 if not os.path.exists(options.folder):
@@ -109,7 +111,7 @@ height = 2 * options.cameras[0].config.image.resolution.height
 width = 2 * options.cameras[0].config.image.resolution.width
 size = (height + bottom_bar_h + top_bar_h, width, 3)
 full_image = np.zeros(size, dtype=np.uint8)
-put_text(full_image, 'Abcdefghijklmnopqrstuvxywz', x=0, y=0.8 * top_bar_h)
+# put_text(full_image, 'Abcdefghijklmnopqrstuvxywz', x=0, y=0.8 * top_bar_h)
 
 files = next(os.walk(options.folder))[2]  # only files from first folder level
 video_files = list(filter(lambda x: x.endswith('.mp4'), files))
@@ -134,6 +136,7 @@ for capture, cameras in captures.items():
         with open(labels_file, 'r') as f:
             labels = to_labels_array(json.load(f))
 
+    original_labels = np.copy(labels)
     it_image = 0
     update_image, waiting_end, current_begin, current_images = True, False, 0, []
     while True:
@@ -147,27 +150,27 @@ for capture, cameras in captures.items():
 
         key = cv2.waitKey(0)
 
-        if key == ord('l') or key == ord('L'):
-            it_image += 10
+        if key == ord(keymap['next_frames']):
+            it_image += keymap['big_step']
             it_image = it_image if it_image < n_images else 0
             update_image = True
 
-        if key == ord('k') or key == ord('K'):
+        if key == ord(keymap['next_frame']):
             it_image += 1
             it_image = it_image if it_image < n_images else 0
             update_image = True
 
-        if key == ord('h') or key == ord('H'):
-            it_image -= 10
+        if key == ord(keymap['previous_frames']):
+            it_image -= keymap['big_step']
             it_image = n_images - 1 if it_image < 0 else it_image
             update_image = True
 
-        if key == ord('j') or key == ord('J'):
+        if key == ord(keymap['previous_frame']):
             it_image -= 1
             it_image = n_images - 1 if it_image < 0 else it_image
             update_image = True
 
-        if key == ord('b') or key == ord('B'):
+        if key == ord(keymap['begin_label']):
             if labels[it_image] == 0 and not waiting_end:
                 labels[it_image] = 2
                 current_begin = it_image
@@ -183,7 +186,7 @@ for capture, cameras in captures.items():
                 it_image = previous_begin
                 update_image = True
 
-        if key == ord('e') or key == ord('E'):
+        if key == ord(keymap['end_label']):
             if labels[it_image] == 0 and waiting_end:
                 if it_image > current_begin:
                     labels[current_begin] = 1
@@ -204,12 +207,30 @@ for capture, cameras in captures.items():
                 it_image = next_end
                 update_image = True
 
-        if key == ord('d') or key == ord('D'):
+        if key == ord(keymap['delete_label']):
             if labels[it_image] == 3 and not waiting_end:
                 begin = np.where(labels[:it_image] == 1)[0][-1]
                 end = np.where(labels[it_image:] == -1)[0][0] + it_image
                 labels[begin:end + 1] = 0
                 update_image = True
 
-        if key == ord('q') or key == ord('Q'):
+        if key == ord(keymap['save_labels']):
+            indexes, counts = np.unique(labels, return_counts=True)
+            counts_dict = dict(zip(indexes, counts))
+            if not waiting_end and counts_dict[-1] == counts_dict[1]:
+                with open(labels_file, 'w') as f:
+                    json.dump(to_labels_dict(labels), f, indent=2)
+                    log.info("File '{}' saved", labels_file)
+                original_labels = labels
+
+        if key == ord(keymap['next_sequence']):
+            if np.all(labels == original_labels):
+                break
+            else:
+                log.warn('You have unsaved changes! Save before move to next sequence.')
+
+
+        if key == ord(keymap['exit']):
             sys.exit(0)
+
+log.info('Exiting')

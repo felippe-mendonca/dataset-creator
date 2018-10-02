@@ -63,7 +63,7 @@ def to_labels_dict(labels_array):
     diff = ends - begins
     if np.any(diff < 1):
         return labels
-    for begin, end in zip(begins, ends):
+    for begin, end in zip(begins.tolist(), ends.tolist()):
         labels['labels'].append({'begin': begin, 'end': end})
     return labels
 

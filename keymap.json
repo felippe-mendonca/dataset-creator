@@ -1,0 +1,13 @@
+{
+  "next_frame": "k",
+  "previous_frame": "j",
+  "next_frames": "l",
+  "previous_frames": "h",
+  "begin_label": "b",
+  "end_label": "e",
+  "delete_label": "d",
+  "save_labels": "s",
+  "next_sequence": "n",
+  "exit": "q",
+  "big_step": 10
+}
