@@ -1,7 +1,11 @@
 import re
 import os
 import sys
+import json
 import shutil
+import argparse
+from datetime import datetime as DT
+from collections import defaultdict, OrderedDict
 from subprocess import Popen, PIPE, STDOUT
 import time
 import cv2
@@ -28,13 +32,64 @@ def place_images(output_image, images):
     output_image[h:2 * h, w:2 * w, :] = images[3]
 
 
+def draw_info_bar(image,
+                  text,
+                  x,
+                  y,
+                  background_color=(0, 0, 0),
+                  text_color=(255, 255, 255),
+                  draw_circle=False):
+    fontFace = cv2.FONT_HERSHEY_DUPLEX
+    fontScale = 1.0
+    thickness = 1
+    ((text_width, text_height), _) = cv2.getTextSize(
+        text=text, fontFace=fontFace, fontScale=fontScale, thickness=thickness)
+
+    cv2.rectangle(
+        display_image,
+        pt1=(0, y - text_height),
+        pt2=(x + text_width, y),
+        color=background_color,
+        thickness=cv2.FILLED)
+    if draw_circle:
+        cv2.circle(
+            display_image,
+            center=(int(x / 2), int(y - text_height / 2)),
+            radius=int(text_height / 3),
+            color=(0, 0, 255),
+            thickness=cv2.FILLED)
+
+    cv2.putText(
+        display_image,
+        text=text,
+        org=(x, y),
+        fontFace=fontFace,
+        fontScale=fontScale,
+        color=text_color,
+        thickness=thickness)
+
+
 log = Logger(name='Capture')
 
-if len(sys.argv) != 3:
-    log.critical("Usage: python3 capture.py <PERSON_ID> <GESTURE_ID>")
+with open('gestures.json', 'r') as f:
+    gestures = json.load(f)
+    gestures = OrderedDict(sorted(gestures.items(), key=lambda kv: int(kv[0])))
+
+parser = argparse.ArgumentParser(
+    description='Utility to capture a sequence of images from multiples cameras'
+)
+parser.add_argument(
+    '--person', '-p', type=int, required=True, help='ID to identity person')
+parser.add_argument(
+    '--gesture', '-g', type=int, required=True, help='ID to identity gesture')
+args = parser.parse_args()
+
+person_id = args.person
+gesture_id = args.gesture
+if str(gesture_id) not in gestures:
+    log.critical("Invalid GESTURE_ID: {}. \nAvailable gestures: {}",
+                 gesture_id, json.dumps(gestures, indent=2))
     sys.exit(-1)
-person_id = int(sys.argv[1])
-gesture_id = int(sys.argv[2])
 log.info("PERSON_ID: {} GESTURE_ID: {}", person_id, gesture_id)
 
 options = load_options()
@@ -42,9 +97,8 @@ options = load_options()
 if not os.path.exists(options.folder):
     os.makedirs(options.folder)
 
-sequence_folder = os.path.join(options.folder, 'p{:03d}g{:02d}'.format(
-    person_id, gesture_id))
-
+sequence = 'p{:03d}g{:02d}'.format(person_id, gesture_id)
+sequence_folder = os.path.join(options.folder, sequence)
 if os.path.exists(sequence_folder):
     log.warn(
         'Path to PERSON_ID={} GESTURE_ID={} already exists.\nWould you like to proceed? All data will be deleted! [y/n]',
@@ -70,9 +124,15 @@ size = (2 * options.cameras[0].config.image.resolution.height,
 full_image = np.zeros(size, dtype=np.uint8)
 
 images_data = {}
+current_timestamps = {}
+timestamps = defaultdict(list)
 images = {}
 n_sample = 0
 display_rate = 2
+start_save = False
+sequence_saved = False
+info_bar_text = "PERSON_ID: {} GESTURE_ID: {} ({})".format(
+    person_id, gesture_id, gestures[str(gesture_id)])
 while True:
     msg = channel.consume()
     camera = get_id(msg.topic)
@@ -83,27 +143,54 @@ while True:
         continue
     data = np.fromstring(pb_image.data, dtype=np.uint8)
     images_data[camera] = data
+    current_timestamps[camera] = DT.utcfromtimestamp(
+        msg.created_at).isoformat()
 
     if len(images_data) == len(options.cameras):
         # save images
-        for camera in options.cameras:
-            filename = os.path.join(
-                sequence_folder, 'c{:02d}s{:08d}.jpeg'.format(
-                    camera.id, n_sample))
-            with open(filename, 'wb') as f:
-                f.write(images_data[camera.id])
+        if start_save and not sequence_saved:
+            for camera in options.cameras:
+                filename = os.path.join(
+                    sequence_folder, 'c{:02d}s{:08d}.jpeg'.format(
+                        camera.id, n_sample))
+                with open(filename, 'wb') as f:
+                    f.write(images_data[camera.id])
+                timestamps[camera.id].append(current_timestamps[camera.id])
+            n_sample += 1
+            log.info('Sample {} saved', n_sample)
+
         # display images
         if n_sample % display_rate == 0:
-            images = [cv2.imdecode(data, cv2.IMREAD_COLOR) for _, data in images_data.items()]
+            images = [
+                cv2.imdecode(data, cv2.IMREAD_COLOR)
+                for _, data in images_data.items()
+            ]
             place_images(full_image, images)
             display_image = cv2.resize(full_image, (0, 0), fx=0.5, fy=0.5)
+            # put recording message
+            draw_info_bar(
+                display_image,
+                info_bar_text,
+                x=50,
+                y=50,
+                draw_circle=start_save and not sequence_saved)
+
             cv2.imshow('', display_image)
+
             key = cv2.waitKey(1)
-            if key == ord('q') or key == ord('Q'):
+            if key == ord('s'):
+                if start_save == False:
+                    start_save = True
+                elif not sequence_saved:
+                    timestamps_filename = os.path.join(options.folder, '{}_timestamps.json'.format(sequence))
+                    with open(timestamps_filename, 'w') as f:
+                        json.dump(timestamps, f, indent=2, sort_keys=True)
+                    sequence_saved = True
+
+            if key == ord('q'):
                 break
-        #
+        # clear images dict
         images_data = {}
-        n_sample += 1
-        log.info('Sample {} saved', n_sample)
+        current_timestamps = {}
 
 log.info("Exiting")

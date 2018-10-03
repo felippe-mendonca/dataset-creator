@@ -1,0 +1,17 @@
+{
+  "0": "ASK_FOR_HELP",
+  "1": "COME_HERE",
+  "2": "LEAVE",
+  "3": "FOLLOW",
+  "4": "STOP",
+  "5": "ABORT",
+  "6": "GOOD",
+  "7": "BAD",
+  "8": "NO",
+  "9": "GIVE_WAY",
+  "10": "POINTING",
+  "11": "DOUBT",
+  "12": "HIGHER",
+  "13": "LOWER",
+  "14": "SILENCE"
+}
