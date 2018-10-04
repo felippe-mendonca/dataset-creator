@@ -188,7 +188,8 @@ while True:
                     sequence_saved = True
 
             if key == ord('q'):
-                break
+                if not start_save or sequence_saved:
+                    break
         # clear images dict
         images_data = {}
         current_timestamps = {}
