@@ -6,35 +6,10 @@ import json
 import numpy as np
 from utils import load_options
 from utils import to_labels_array, to_labels_dict
+from video_loader import MultipleVideoLoader
 from is_wire.core import Logger
 from collections import defaultdict
 import time
-
-
-def load_images(capture, cameras, folder):
-    video_captures = {}
-    for camera in cameras:
-        video_file = '{:s}c{:02d}.mp4'.format(capture, camera)
-        video_path = os.path.join(folder, video_file)
-        video_captures[camera] = cv2.VideoCapture(video_path)
-
-    n_frames = [
-        int(vc.get(cv2.CAP_PROP_FRAME_COUNT))
-        for vc in video_captures.values()
-    ]
-
-    if not all([nf == n_frames[0] for nf in n_frames]):
-        return None
-
-    images = defaultdict(list)
-    for camera, video_capture in video_captures.items():
-        while True:
-            has_frame, frame = video_capture.read()
-            if not has_frame:
-                break
-            images[camera].append(frame)
-
-    return images
 
 
 def place_images(output_image, images, x_offset=0, y_offset=0):
@@ -49,7 +24,7 @@ def place_images(output_image, images, x_offset=0, y_offset=0):
                  x_offset, :] = images[3]
 
 
-def draw_labels(output_image, y_offset, labels, current_pos):
+def draw_labels(output_image, y_offset, labels, current_pos, n_loaded_frames=None):
     w, h = output_image.shape[1], output_image.shape[0]
     scale = w / len(labels)
     output_image[h - y_offset:, :, :] = 0
@@ -77,7 +52,11 @@ def draw_labels(output_image, y_offset, labels, current_pos):
     for p in ends:
         draw_rect(p, scale, (0, 0, 255))
     draw_rect(scale * current_pos, scale, (0, 255, 255))
-
+    if n_loaded_frames is not None:
+        not_loaded = len(labels) - n_loaded_frames
+        x = scale * (not_loaded / 2 + n_loaded_frames)
+        width = scale * not_loaded
+        draw_rect(x, width, (255, 255, 255))
 
 def put_text(image,
              text,
@@ -110,8 +89,6 @@ top_bar_h = 75
 height = 2 * options.cameras[0].config.image.resolution.height
 width = 2 * options.cameras[0].config.image.resolution.width
 size = (height + bottom_bar_h + top_bar_h, width, 3)
-full_image = np.zeros(size, dtype=np.uint8)
-# put_text(full_image, 'Abcdefghijklmnopqrstuvxywz', x=0, y=0.8 * top_bar_h)
 
 files = next(os.walk(options.folder))[2]  # only files from first folder level
 video_files = list(filter(lambda x: x.endswith('.mp4'), files))
@@ -126,91 +103,104 @@ for video_file in video_files:
 
 for capture, cameras in captures.items():
     log.info('Loading images from \'{}\'', capture)
-    images = load_images(capture, cameras, options.folder)
-    log.info('Images loaded')
-    n_images = len(images[list(cameras)[0]])
-    labels = np.zeros(n_images, dtype=np.int8)
+    video_files = {
+        camera: os.path.join(options.folder, '{:s}c{:02d}.mp4'.format(
+            capture, camera))
+        for camera in sorted(cameras)
+    }
+    video_loader = MultipleVideoLoader(video_files)
+    labels = np.zeros(video_loader.n_frames(), dtype=np.int8)
     # check if label file already exists
     labels_file = os.path.join(options.folder, '{}.json'.format(capture))
     if os.path.exists(labels_file):
         with open(labels_file, 'r') as f:
             labels = to_labels_array(json.load(f))
 
+    full_image = np.zeros(size, dtype=np.uint8)
+    put_text(full_image, '{}'.format(capture), x=20, y=0.8 * top_bar_h)
     original_labels = np.copy(labels)
-    it_image = 0
+    it_frames = 0
     update_image, waiting_end, current_begin, current_images = True, False, 0, []
     while True:
+        if video_loader.n_loaded_frames() < video_loader.n_frames():
+            update_image = True
+        n_loaded_frames = video_loader.load_next()
+
         if update_image:
-            current_images = [images[camera][it_image] for camera in cameras]
-            place_images(full_image, current_images, y_offset=top_bar_h)
-            draw_labels(full_image, top_bar_h, labels, it_image)
+            frames = video_loader[it_frames]
+            if frames is not None:
+                frames_list = [frames[cam] for cam in sorted(frames.keys())]
+                place_images(full_image, frames_list, y_offset=top_bar_h)
+                draw_labels(full_image, top_bar_h, labels, it_frames, n_loaded_frames)
             cv2.imshow('', cv2.resize(
                 full_image, dsize=(0, 0), fx=0.5, fy=0.5))
             update_image = False
 
-        key = cv2.waitKey(0)
+        key = cv2.waitKey(1)
+        if key == -1:
+            continue
 
         if key == ord(keymap['next_frames']):
-            it_image += keymap['big_step']
-            it_image = it_image if it_image < n_images else 0
+            it_frames += keymap['big_step']
+            it_frames = it_frames if it_frames < n_loaded_frames else 0
             update_image = True
 
         if key == ord(keymap['next_frame']):
-            it_image += 1
-            it_image = it_image if it_image < n_images else 0
+            it_frames += 1
+            it_frames = it_frames if it_frames < n_loaded_frames else 0
             update_image = True
 
         if key == ord(keymap['previous_frames']):
-            it_image -= keymap['big_step']
-            it_image = n_images - 1 if it_image < 0 else it_image
+            it_frames -= keymap['big_step']
+            it_frames = n_loaded_frames - 1 if it_frames < 0 else it_frames
             update_image = True
 
         if key == ord(keymap['previous_frame']):
-            it_image -= 1
-            it_image = n_images - 1 if it_image < 0 else it_image
+            it_frames -= 1
+            it_frames = n_loaded_frames - 1 if it_frames < 0 else it_frames
             update_image = True
 
         if key == ord(keymap['begin_label']):
-            if labels[it_image] == 0 and not waiting_end:
-                labels[it_image] = 2
-                current_begin = it_image
+            if labels[it_frames] == 0 and not waiting_end:
+                labels[it_frames] = 2
+                current_begin = it_frames
                 waiting_end = True
                 update_image = True
-            elif it_image == current_begin and waiting_end:
-                labels[it_image] = 0
+            elif it_frames == current_begin and waiting_end:
+                labels[it_frames] = 0
                 waiting_end = False
                 update_image = True
-            elif (labels[it_image] == -1
-                  or labels[it_image] == 3) and not waiting_end:
-                previous_begin = np.where(labels[:it_image] == 1)[0][-1]
-                it_image = previous_begin
+            elif (labels[it_frames] == -1
+                  or labels[it_frames] == 3) and not waiting_end:
+                previous_begin = np.where(labels[:it_frames] == 1)[0][-1]
+                it_frames = previous_begin
                 update_image = True
 
         if key == ord(keymap['end_label']):
-            if labels[it_image] == 0 and waiting_end:
-                if it_image > current_begin:
+            if labels[it_frames] == 0 and waiting_end:
+                if it_frames > current_begin:
                     labels[current_begin] = 1
-                    labels[it_image] = -1
-                    labels[current_begin + 1:it_image] = 3
+                    labels[it_frames] = -1
+                    labels[current_begin + 1:it_frames] = 3
                     waiting_end = False
                     update_image = True
-            elif labels[it_image] == -1:
-                labels[it_image] = 0
-                current_begin = np.where(labels[:it_image] == 1)[0][-1]
+            elif labels[it_frames] == -1:
+                labels[it_frames] = 0
+                current_begin = np.where(labels[:it_frames] == 1)[0][-1]
                 labels[current_begin] = 2
-                labels[current_begin + 1:it_image] = 0
+                labels[current_begin + 1:it_frames] = 0
                 waiting_end = True
                 update_image = True
-            elif (labels[it_image] == 1
-                  or labels[it_image] == 3) and not waiting_end:
-                next_end = np.where(labels[it_image:] == -1)[0][0] + it_image
-                it_image = next_end
+            elif (labels[it_frames] == 1
+                  or labels[it_frames] == 3) and not waiting_end:
+                next_end = np.where(labels[it_frames:] == -1)[0][0] + it_frames
+                it_frames = next_end
                 update_image = True
 
         if key == ord(keymap['delete_label']):
-            if labels[it_image] == 3 and not waiting_end:
-                begin = np.where(labels[:it_image] == 1)[0][-1]
-                end = np.where(labels[it_image:] == -1)[0][0] + it_image
+            if labels[it_frames] == 3 and not waiting_end:
+                begin = np.where(labels[:it_frames] == 1)[0][-1]
+                end = np.where(labels[it_frames:] == -1)[0][0] + it_frames
                 labels[begin:end + 1] = 0
                 update_image = True
 
@@ -227,8 +217,9 @@ for capture, cameras in captures.items():
             if np.all(labels == original_labels):
                 break
             else:
-                log.warn('You have unsaved changes! Save before move to next sequence.')
-
+                log.warn(
+                    'You have unsaved changes! Save before move to next sequence.'
+                )
 
         if key == ord(keymap['exit']):
             sys.exit(0)

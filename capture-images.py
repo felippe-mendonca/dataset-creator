@@ -92,7 +92,7 @@ if str(gesture_id) not in gestures:
     sys.exit(-1)
 log.info("PERSON_ID: {} GESTURE_ID: {}", person_id, gesture_id)
 
-options = load_options()
+options = load_options(print_options=False)
 
 if not os.path.exists(options.folder):
     os.makedirs(options.folder)

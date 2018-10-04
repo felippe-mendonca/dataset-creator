@@ -15,7 +15,7 @@ def get_person_gesture(folder):
 
 
 log = Logger(name='Capture')
-options = load_options()
+options = load_options(print_options=False)
 
 if not os.path.exists(options.folder):
     log.critical("Folder '{}' doesn't exist", options.folder)
@@ -41,12 +41,13 @@ for root, dirs, files in os.walk(options.folder):
                 fps=camera.config.sampling.frequency.value,
                 file_pattern=file_pattern,
                 video_file=video_file)
+            log.info("Creating video '{}'", video_file)
             process = Popen(ffmpeg_command.split(), stdout=PIPE, stderr=STDOUT)
             # with process.stdout as pipe:
                 # for line in iter(pipe.readline, b''):
                     # print(line.decode('utf-8').strip())
             if process.wait() == 0:
-                log.info("\'{}\' created", video_file)
+                log.info("Done")
                 # shutil.rmtree(sequence_folder)
             else:
                 log.warn("\'{}\' failed", video_file)
