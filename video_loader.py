@@ -1,6 +1,45 @@
 import os
 import cv2
 
+class VideoLoader:
+    def __init__(self, filename=None):
+        self._vc = None
+        self._fps = 0.0
+        self._n_frames = 0
+        self._frames = []
+        self._it = 0
+        if filename is not None:
+            self.load(filename)
+
+    def load(self, filename):
+        self._vc = cv2.VideoCapture(filename)
+        self._fps = self._vc.get(cv2.CAP_PROP_FPS)
+        self._width = int(self._vc.get(cv2.CAP_PROP_FRAME_WIDTH))
+        self._height = int(self._vc.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        self._n_frames = int(self._vc.get(cv2.CAP_PROP_FRAME_COUNT))
+        self._frames = []
+        while True:
+            next_frame_id = int(self._vc.get(cv2.CAP_PROP_POS_FRAMES))
+            if next_frame_id == self._n_frames:
+                break
+            _, frame = self._vc.read()
+            self._frames.append(frame)
+        self._it = 0
+
+    def fps(self):
+        return self._fps
+    
+    def resolution(self):
+        return (self._width, self._height)
+
+    def __next__(self):
+        if self._vc is None:
+            raise Exception('Load a video file before use next')
+        self._it = 0 if self._it == self._n_frames else self._it
+        ret_frame = self._frames[self._it]
+        self._it += 1 
+        return ret_frame
+
 
 class MultipleVideoLoader:
     def __init__(self, filenames, folder='.'):
@@ -30,6 +69,15 @@ class MultipleVideoLoader:
 
     def n_loaded_frames(self):
         return len(next(iter(self._frames.values())))
+
+    def fps(self):
+        return {
+            src: vc.get(cv2.CAP_PROP_FPS)
+            for src, vc in self._video_captures.items()
+        }
+    def release_memory(self):
+        for src in self._frames.keys():
+            del self._frames[src][:]
 
     def load_next(self):
         next_frame_ids = [
