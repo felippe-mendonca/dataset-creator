@@ -16,11 +16,9 @@ if [[ $EUID == 0 ]]; then
     ffmpeg x264 libx264-dev \
     qtbase5-dev libatlas-base-dev gfortran \
     python3 python3-dev)
-  # if [ `apt -qq list ${packages[*]} | wc -l` !=  ${#packages[@]} ]; then
     echo "[$EUID] |>>| installing distro packages: ${packages[*]}"
     apt update
     apt install --no-install-recommends -y ${packages[*]} 
-  # fi
 
   invalid_cmake_version=false
   if command -v cmake > /dev/null ; then 
@@ -61,6 +59,7 @@ if [[ $EUID != 0 || -z ${wasnt_root} ]]; then
   pip3 install --user numpy
   wget https://github.com/opencv/opencv/archive/3.4.3.tar.gz
   tar xf 3.4.3.tar.gz
+  rm -f 3.4.3.tar.gz
   cd opencv-3.4.3/
   mkdir -p build
   cd build
@@ -72,6 +71,6 @@ if [[ $EUID != 0 || -z ${wasnt_root} ]]; then
     -D CMAKE_MAKE_PROGRAM=/usr/bin/ninja ..
   ninja
   sudo ninja install
-  rm -f 3.4.3.tar.gz
+  cd ../../
   rm -rf opencv-3.4.3/
 fi

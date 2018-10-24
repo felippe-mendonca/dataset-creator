@@ -14,7 +14,7 @@ from google.protobuf.json_format import MessageToDict
 
 MIN_REQUESTS = 5
 MAX_REQUESTS = 10 
-DEADLINE_SEC = 1.0
+DEADLINE_SEC = 15.0
 
 
 class State(Enum):
@@ -25,7 +25,7 @@ class State(Enum):
     EXIT = 5
 
 
-log = Logger(name='RequestSkeletons')
+log = Logger(name='Request2dSkeletons')
 options = load_options(print_options=False)
 
 if not os.path.exists(options.folder):
@@ -39,7 +39,7 @@ pending_videos = []
 n_annotations = {}
 for video_file in video_files:
     base_name = video_file.split('.')[0]
-    annotation_file = '{}.json'.format(base_name)
+    annotation_file = '{}_2d.json'.format(base_name)
     annotation_path = os.path.join(options.folder, annotation_file)
     video_path = os.path.join(options.folder, video_file)
     cap = cv2.VideoCapture(video_path)
@@ -58,6 +58,9 @@ for video_file in video_files:
 
     pending_videos.append(video_file)
     n_annotations[base_name] = n_frames
+if len(pending_videos) == 0:
+    log.info("Exiting...")
+    sys.exit(-1)
 
 channel = Channel(options.broker_uri)
 subscription = Subscription(channel)
@@ -82,7 +85,7 @@ while True:
                 pb_image = make_pb_image(frame)
                 msg = Message(content=pb_image, reply_to=subscription)
                 msg.timeout = DEADLINE_SEC
-                channel.publish(msg, topic='Skeletons.Detect')
+                channel.publish(msg, topic='SkeletonsDetector.Detect')
                 requests[msg.correlation_id] = {
                     'content': pb_image,
                     'base_name': base_name,
@@ -124,7 +127,7 @@ while True:
                     datetime.datetime.now().isoformat()
                 }
                 filename = os.path.join(options.folder,
-                                        '{}.json'.format(base_name))
+                                        '{}_2d.json'.format(base_name))
                 with open(filename, 'w') as f:
                     json.dump(output_annotations, f, indent=2)
                 del annotations_received[base_name]
@@ -142,7 +145,7 @@ while True:
                 continue
             msg = Message(content=request['content'], reply_to=subscription)
             msg.timeout = DEADLINE_SEC
-            channel.publish(msg, topic='Skeletons.Detect')
+            channel.publish(msg, topic='SkeletonsDetector.Detect')
             new_requests[msg.correlation_id] = {
                 'content': request['content'],
                 'base_name': request['base_name'],

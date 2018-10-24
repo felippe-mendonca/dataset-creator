@@ -111,7 +111,7 @@ for capture, cameras in captures.items():
     video_loader = MultipleVideoLoader(video_files)
     labels = np.zeros(video_loader.n_frames(), dtype=np.int8)
     # check if label file already exists
-    labels_file = os.path.join(options.folder, '{}.json'.format(capture))
+    labels_file = os.path.join(options.folder, '{}_spots.json'.format(capture))
     if os.path.exists(labels_file):
         with open(labels_file, 'r') as f:
             labels = to_labels_array(json.load(f))
