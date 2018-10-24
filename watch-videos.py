@@ -17,30 +17,29 @@ from is_msgs.image_pb2 import HumanKeypoints as HKP
 from google.protobuf.json_format import ParseDict
 from itertools import permutations
 
+colors = list(permutations([0, 255, 85, 170], 3))
+links = [(HKP.Value('HEAD'), HKP.Value('NECK')),
+        (HKP.Value('NECK'), HKP.Value('CHEST')),
+        (HKP.Value('CHEST'), HKP.Value('RIGHT_HIP')),
+        (HKP.Value('CHEST'), HKP.Value('LEFT_HIP')),
+        (HKP.Value('NECK'), HKP.Value('LEFT_SHOULDER')),
+        (HKP.Value('LEFT_SHOULDER'), HKP.Value('LEFT_ELBOW')),
+        (HKP.Value('LEFT_ELBOW'), HKP.Value('LEFT_WRIST')),
+        (HKP.Value('NECK'), HKP.Value('LEFT_HIP')),
+        (HKP.Value('LEFT_HIP'), HKP.Value('LEFT_KNEE')),
+        (HKP.Value('LEFT_KNEE'), HKP.Value('LEFT_ANKLE')),
+        (HKP.Value('NECK'), HKP.Value('RIGHT_SHOULDER')),
+        (HKP.Value('RIGHT_SHOULDER'), HKP.Value('RIGHT_ELBOW')),
+        (HKP.Value('RIGHT_ELBOW'), HKP.Value('RIGHT_WRIST')),
+        (HKP.Value('NECK'), HKP.Value('RIGHT_HIP')),
+        (HKP.Value('RIGHT_HIP'), HKP.Value('RIGHT_KNEE')),
+        (HKP.Value('RIGHT_KNEE'), HKP.Value('RIGHT_ANKLE')),
+        (HKP.Value('NOSE'), HKP.Value('LEFT_EYE')),
+        (HKP.Value('LEFT_EYE'), HKP.Value('LEFT_EAR')),
+        (HKP.Value('NOSE'), HKP.Value('RIGHT_EYE')),
+        (HKP.Value('RIGHT_EYE'), HKP.Value('RIGHT_EAR'))]
 
-def render_skeletons(images, annotations, it):
-    colors = list(permutations([0, 255, 85, 170], 3))
-    links = [(HKP.Value('HEAD'), HKP.Value('NECK')),
-             (HKP.Value('NECK'), HKP.Value('CHEST')),
-             (HKP.Value('CHEST'), HKP.Value('RIGHT_HIP')),
-             (HKP.Value('CHEST'), HKP.Value('LEFT_HIP')),
-             (HKP.Value('NECK'), HKP.Value('LEFT_SHOULDER')),
-             (HKP.Value('LEFT_SHOULDER'), HKP.Value('LEFT_ELBOW')),
-             (HKP.Value('LEFT_ELBOW'), HKP.Value('LEFT_WRIST')),
-             (HKP.Value('NECK'), HKP.Value('LEFT_HIP')),
-             (HKP.Value('LEFT_HIP'), HKP.Value('LEFT_KNEE')),
-             (HKP.Value('LEFT_KNEE'), HKP.Value('LEFT_ANKLE')),
-             (HKP.Value('NECK'), HKP.Value('RIGHT_SHOULDER')),
-             (HKP.Value('RIGHT_SHOULDER'), HKP.Value('RIGHT_ELBOW')),
-             (HKP.Value('RIGHT_ELBOW'), HKP.Value('RIGHT_WRIST')),
-             (HKP.Value('NECK'), HKP.Value('RIGHT_HIP')),
-             (HKP.Value('RIGHT_HIP'), HKP.Value('RIGHT_KNEE')),
-             (HKP.Value('RIGHT_KNEE'), HKP.Value('RIGHT_ANKLE')),
-             (HKP.Value('NOSE'), HKP.Value('LEFT_EYE')),
-             (HKP.Value('LEFT_EYE'), HKP.Value('LEFT_EAR')),
-             (HKP.Value('NOSE'), HKP.Value('RIGHT_EYE')),
-             (HKP.Value('RIGHT_EYE'), HKP.Value('RIGHT_EAR'))]
-
+def render_skeletons(images, annotations, it, colors, links):
     for cam_id, image in images.items():
         skeletons = ParseDict(annotations[cam_id][it], ObjectAnnotations())
         for ob in skeletons.objects:
@@ -151,7 +150,7 @@ while True:
     if update_image:
         frames = video_loader[it_frames]
         if frames is not None:
-            render_skeletons(frames, annotations, it_frames)
+            render_skeletons(frames, annotations, it_frames, colors, links)
             frames_list = [frames[cam] for cam in sorted(frames.keys())]
             place_images(full_image, frames_list)
         cv2.imshow('', cv2.resize(full_image, dsize=(0, 0), fx=0.5, fy=0.5))

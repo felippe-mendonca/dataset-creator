@@ -6,6 +6,7 @@ import json
 import time
 import socket
 import datetime
+import numpy as np
 from collections import defaultdict
 from enum import Enum
 from is_wire.core import Channel, Subscription, Message, Logger, ContentType
@@ -15,9 +16,9 @@ from google.protobuf.json_format import MessageToDict
 
 from pprint import pprint
 
-MIN_REQUESTS = 5
-MAX_REQUESTS = 10
-DEADLINE_SEC = 15.0
+MIN_REQUESTS = 50
+MAX_REQUESTS = 300
+DEADLINE_SEC = 5.0
 
 
 class State(Enum):
@@ -169,7 +170,15 @@ while True:
                     json.dump(output_localizations, f, indent=2)
 
                 done_sequences.append((person_id, gesture_id))
-                log.info('{} has been saved.', filename)
+
+                localizations_count = [
+                    len(l['objects']) for l in output_localizations['localizations']
+                ]
+                count_dict = map(lambda x: list(map(str, x)),
+                                 np.unique(localizations_count, return_counts=True))
+                count_info = json.dumps(dict(zip(*count_dict))).replace('"', '')
+                log.info('PERSON_ID: {:03d} GESTURE_ID: {:02d} Done! {}', person_id, gesture_id,
+                         count_info)
 
         for person_id, gesture_id in done_sequences:
             del localizations_received[person_id][gesture_id]
