@@ -14,7 +14,7 @@ if [[ $EUID == 0 ]]; then
     libjpeg8-dev libtiff5-dev libjasper-dev libpng12-dev \
     libavcodec-dev libavformat-dev libswscale-dev libv4l-dev \
     ffmpeg x264 libx264-dev \
-    qtbase5-dev libatlas-base-dev gfortran \
+    libgtk2.0-dev libatlas-base-dev gfortran \
     python3 python3-dev)
     echo "[$EUID] |>>| installing distro packages: ${packages[*]}"
     apt update
@@ -65,7 +65,8 @@ if [[ $EUID != 0 || -z ${wasnt_root} ]]; then
   cd build
   cmake \
     -D CMAKE_BUILD_TYPE=RELEASE \
-    -D WITH_QT=ON \
+    -D WITH_QT=OFF \
+    -D WITH_GTK=ON \
   	-D CMAKE_INSTALL_PREFIX=/usr/local \
   	-G Ninja \
     -D CMAKE_MAKE_PROGRAM=/usr/bin/ninja ..
