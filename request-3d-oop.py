@@ -14,7 +14,7 @@ from is_wire.core import Channel, ContentType, Logger, Message, Subscription
 from utils import AnnotationsFetcher, load_options
 
 MIN_REQUESTS = 50  # Número mínimo de solicitações
-MAX_REQUESTS = 300  # Número máximo de solicitações
+MAX_REQUESTS = 1000  # Número máximo de solicitações
 DEADLINE_SEC = 5.0  # Prazo limite em segundos
 JSON2D_REGEX = 'p([0-9]{3})g([0-9]{2})c([0-9]{2})_2d.json'
 JSON3D_FORMAT = 'p{:03d}g{:02d}_3d.json'
@@ -231,7 +231,7 @@ class Request3D:
                 'requested_at': time.time()
             }
             del self.requests[cid]
-            self.log.warn("Message '{}' timeouted. Sending another request.", cid)
+            self.log.warn("Message '{}' timed out. Sending another request.", cid)
 
         self.requests.update(new_requests)
         
@@ -249,7 +249,7 @@ class Request3D:
                     if len(localizations_dict) < self.num_localizations[person_id][gesture_id]:
                         continue
                 except KeyError:
-                    self.log.warn('KeyError: PERSON_ID: {:03d} GESTURE_ID: {:02d}',person_id, gesture_id)
+                    self.log.warn(f'KeyError: PERSON_ID: {person_id:03d} GESTURE_ID: {gesture_id:02d}')
                     continue
 
                 output_localizations = {
